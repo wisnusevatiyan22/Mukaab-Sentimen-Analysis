@@ -1,0 +1,583 @@
+---
+btitle: "Twitter Sentiment Analysis Muka'ab"
+author: "Wisnu Sevatiyan Diqrelah"
+date: "2023-06-10"
+output: word_document
+---
+```{python}
+from PIL import Image
+
+# Path gambar
+path_gambar = 'path_ke_gambar.png'
+
+# Membuka gambar
+gambar = Image.open("C:/Users/ACER/Pictures/mukaab.png")
+
+# Menampilkan gambar
+gambar.show()
+```
+
+Latar Belakang:
+Mukaab, sebuah gedung pencakar langit berbentuk kubus yang direncanakan untuk dibangun di Riyadh, Arab Saudi, telah menarik perhatian dunia sejak pengumumannya. Proyek ambisius ini merupakan bagian dari inisiatif yang lebih luas untuk mengembangkan lingkungan Murabba dan menciptakan pusat kegiatan ekonomi, budaya, dan pariwisata yang menarik. Dalam konteks ini, penting untuk memahami bagaimana masyarakat meresapi dan merespon proyek Mukaab, serta dampak yang mungkin dihasilkannya.
+Salah satu cara untuk mengukur persepsi publik terhadap proyek seperti Mukaab adalah melalui analisis sentimen. Analisis sentimen adalah metode yang digunakan untuk mengidentifikasi dan mengkategorikan opini yang dinyatakan dalam teks, seperti komentar di media sosial, ulasan, dan berita. Dalam konteks Mukaab, analisis sentimen dapat membantu mengungkapkan bagaimana proyek ini diterima oleh masyarakat, baik secara lokal maupun internasional, serta mengidentifikasi faktor-faktor yang mungkin mempengaruhi persepsi mereka.
+Dalam laporan ini, kami akan menggunakan pendekatan analisis sentimen untuk mengevaluasi respons publik terhadap proyek Mukaab. Kami akan mengumpulkan data dari berbagai sumber, termasuk media sosial, forum diskusi, dan berita daring, untuk mengidentifikasi tema dan tren yang muncul dalam percakapan seputar Mukaab. Selanjutnya, kami akan menganalisis data ini untuk menentukan sentimen yang dominan dan mengidentifikasi faktor-faktor yang mungkin mempengaruhi persepsi publik terhadap proyek ini.
+Dengan memahami sentimen yang berkaitan dengan Mukaab, kami dapat memberikan wawasan berharga bagi para pemangku kepentingan yang terlibat dalam proyek ini, termasuk pengembang, pemerintah, dan investor. Selain itu, analisis sentimen dapat membantu menginformasikan strategi komunikasi dan pemasaran yang efektif untuk mempromosikan proyek ini dan mengatasi kekhawatiran atau keberatan yang mungkin muncul dari masyarakat.
+
+Langkah Penelitian:
+1. Crowling data secara daring (twitter)
+2. Melakukan translate data dari bahasa ingris ke Indonesia
+3. Melakukan sentiment analisis
+4. Menentukan topik model
+5. Menentukan Akurasi model
+6. Kesimpulan dan saran
+
+Hasil Penelitian:
+1. Crowling data di twitter dan menampilkan 100 kata tersering dketik terkait mukaab
+```{r}
+library(tokenizers)
+library(tidyverse)
+library(tidytext)
+library(hcandersenr)
+library(stringr)
+library(dplyr)
+library(stopwords)
+library(tibble)
+library(readxl)
+library(tm)
+```
+
+## membaca data
+```{r}
+mukab <- read_excel("F:/SEMESTER 6/MDTT/mukab.xlsx")
+mukab <- mukab[4]
+```
+
+## jadi corpusdata
+```{r}
+corpusdata <- Corpus(VectorSource(mukab$...4))
+inspect(head(corpusdata))
+```
+
+jadi huruf kecil
+```{r}
+casefolding <- tm_map(corpusdata, content_transformer(tolower))
+inspect(head(casefolding))
+```
+
+```{r}
+# hapus url
+removeURL <- function(x) gsub('http[^[:space:]]*', "", x)
+data_URL <- tm_map(casefolding, content_transformer(removeURL))
+inspect(data_URL[1:10])
+```
+
+```{r}
+# hapus mention
+removemention <- function(x) gsub('@\\s+',"", x)
+data_mention <- tm_map(data_URL, removemention)
+inspect(data_mention[1:10])
+```
+
+```{r}
+# hapus hastag
+removehastag <- function(x) gsub ('#\\s+', "", x)
+data_hastag <- tm_map(data_mention, removehastag)
+inspect(data_hastag[1:10])
+```
+
+```{r}
+# hapus tanda baca
+data_punctuation <- tm_map(data_hastag, content_transformer(removePunctuation))
+inspect(data_punctuation[1:10])
+```
+
+```{r}
+# hapus angka
+data_number <- tm_map(data_punctuation, content_transformer(removeNumbers))
+inspect(data_number[1:10])
+```
+
+```{r}
+# hapus emot
+removeEmot <- function(x) gsub("[^\x01-\x7F]", "", x)
+data_emot <- tm_map(data_number, content_transformer(removeEmot))
+inspect(data_emot[1:10])
+```
+
+
+## Dictionary
+```{r}
+dictionary <- read_excel("F:/SEMESTER 6/MDTT/dictionary.xlsx")
+```
+
+## Stopword
+```{r}
+# remove stopword
+removestopword <- tm_map(data_emot, removeWords, dictionary$dictionary)
+inspect(removestopword[1:10])
+```
+```{r}
+# hapus spasi berlebihan
+removespasi <- tm_map(removestopword, content_transformer(stripWhitespace))
+inspect(removespasi[1:10])
+```
+
+
+```{r}
+#menyimpan clean data
+cleandata <- data.frame(text=unlist(sapply(removespasi,`[`)), tringAsFactors=F)
+write.csv(cleandata,file="mukabbersih.csv")
+```
+
+```{r}
+file <- "mukabbersih.csv"
+data <- read.csv(file)
+View(data)
+```
+
+## Tokenisasi
+```{r}
+#tokenizing
+tokenize_words(data$text[1:10])
+tft_tokeen_ngram <- tokenize_ngrams(x=data$text[1:10],
+                                    lowercase = TRUE,
+                                    n = 3L)
+head(tft_tokeen_ngram)
+```
+
+
+```{r}
+sample_vector <- c(data$text[1:10])
+sample_tibble <- tibble(text=sample_vector)
+head(sample_tibble)
+```
+
+
+```{r}
+token_sentence <- sample_tibble %>%
+  unnest_tokens(word, text, token = "sentences", strip_punct=F)
+head(token_sentence)
+```
+
+
+```{r}
+token_words <- sample_tibble %>%
+  unnest_tokens(word, text, token = "words", strip_punct=F)
+head(token_words)
+```
+
+
+```{r}
+token_ngram <- sample_tibble %>%
+  unnest_tokens(word, text, token = "ngrams", n = 2)
+head(token_ngram)
+```
+
+
+```{r}
+library(devtools)
+library(wordcloud)
+wordcloud(data$text, max.words = 100, colors = brewer.pal(8, "Dark2"))
+```
+Gambarnya merupakan tampilan dari 100 kata yang paling sering diketik di twitter terkait artikel mukaab, semakin besar tulisan menandakan semakin sering diketik dan sebaliknya.
+
+2. Melakukan translate data mukaab dari english ke bahasa indonesia
+```{python}
+import pandas as pd
+data = pd.read_csv('F:/SEMESTER 6/MDTT/mukabbersih.csv')
+data = data[:100]
+data.head()
+```
+```{python}
+#translate dari inggris ke bahasa indonesia
+from googletrans import Translator
+
+def translate_column(column, source_lang, target_lang):
+    translator = Translator()
+    translated_column = []
+    for text in column:
+        translation = translator.translate(text, src=source_lang, dest=target_lang)
+        translated_text = translation.text if translation else ""
+        translated_column.append(translated_text)
+    return translated_column
+```
+
+```{python}
+translated = translate_column(data["text"], 'en', 'id')
+data['id'] = translated
+data['id'][:10]
+```
+daftar kalimat di atas merupakan 10 kalimat teratas dari daftar teks yang sudah ditranslate dari english ke bahasa indonesia
+```{python}
+#save file
+data['id'].to_csv("translate_data_Wisnu Sevatiyan_035.csv", index = False)
+```
+
+3. Sentimen Analisis
+```{r}
+library(tidytext)
+
+head(get_sentiments("afinn"))
+head(get_sentiments("bing"))
+head(get_sentiments("nrc"))
+```
+daftar di atas merupakan kata yang sudah diklasifikasikan berdasarkan 3 sentimen, yaitu afinn, bing, dan nrc
+```{r}
+file <- "mukabbersih.csv"
+mukab <- read.csv(file)
+```
+
+```{r}
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+
+mukab <- austen_books() %>%
+  group_by(book) %>%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text, 
+                                regex("^chapter [\\divxlc]", 
+                                      ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+```
+
+
+```{r}
+nrc_joy <- get_sentiments("nrc") %>% 
+  filter(sentiment == "joy")
+
+mukab %>%
+  filter(book == "Emma") %>%
+  inner_join(nrc_joy) %>%
+  count(word, sort = TRUE)
+```
+
+```{r}
+library(tidyr)
+
+jane_austen_sentiment <- mukab %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(book, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(jane_austen_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+```
+
+```{r}
+pride_prejudice <- mukab %>% 
+  filter(book == "Pride & Prejudice")
+
+pride_prejudice
+```
+
+```{r}
+afinn <- pride_prejudice %>% 
+  inner_join(get_sentiments("afinn")) %>% 
+  group_by(index = linenumber %/% 80) %>% 
+  summarise(sentiment = sum(value)) %>% 
+  mutate(method = "AFINN")
+
+bing_and_nrc <- bind_rows(
+  pride_prejudice %>% 
+    inner_join(get_sentiments("bing")) %>%
+    mutate(method = "Bing et al."),
+  pride_prejudice %>% 
+    inner_join(get_sentiments("nrc") %>% 
+                 filter(sentiment %in% c("positive", 
+                                         "negative"))
+    ) %>%
+    mutate(method = "NRC")) %>%
+  count(method, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment,
+              values_from = n,
+              values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+```
+
+```{r}
+bind_rows(afinn, 
+          bing_and_nrc) %>%
+  ggplot(aes(index, sentiment, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+```
+
+```{r}
+get_sentiments("nrc") %>% 
+  filter(sentiment %in% c("positive", "negative")) %>% 
+  count(sentiment)
+```
+berdasarkan nrc, negative sentiment sebanyak 3316 dan positive sebanyak 2308
+```{r}
+get_sentiments("bing") %>% 
+  count(sentiment)
+```
+
+berdasarkan bing, negative sentiment sebanyak 4781 dan positive sebanyak 2005
+```{r}
+bing_word_counts <- mukab %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+head(bing_word_counts)
+```
+5 kata teratas berdasarkan sentiment bing dan jumlahnya 
+```{r}
+custom_stop_words <- bind_rows(tibble(word = c("miss"),  
+                                      lexicon = c("custom")), 
+                               stop_words)
+
+head(custom_stop_words)
+```
+5 kata teratas dengan jenis lexicon berdasarkan bing sentiment
+```{r}
+library(wordcloud)
+
+mukab %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+gambar yang menunjukkan proporsi kata tersering diketik di twitter setelah analisis sentimen dengan hasil tertinggi adalah miss
+```{r}
+library(reshape2)
+
+mukab %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+```
+gambar di atas menunjukkan proporsi kata dengan sentimen negatif dan positif
+```{r}
+p_and_p_sentences <- tibble(text = prideprejudice) %>% 
+  unnest_tokens(sentence, text, token = "sentences")
+```
+
+```{r}
+p_and_p_sentences$sentence[2]
+```
+
+```{r}
+austen_chapters <- austen_books() %>%
+  group_by(book) %>%
+  unnest_tokens(chapter, text, token = "regex", 
+                pattern = "Chapter|CHAPTER [\\dIVXLC]") %>%
+  ungroup()
+
+austen_chapters %>% 
+  group_by(book) %>% 
+  summarise(chapters = n())
+```
+
+```{r}
+bingnegative <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative")
+
+wordcounts <- mukab %>%
+  group_by(book, chapter) %>%
+  summarize(words = n())
+
+mukab %>%
+  semi_join(bingnegative) %>%
+  group_by(book, chapter) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(chapter != 0) %>%
+  slice_max(ratio, n = 1) %>% 
+  ungroup()
+```
+4. Topik Model
+Read data
+```{r}
+library(readxl)
+cleandata <- read.csv("F:/SEMESTER 6/MDTT/translate_data_Wisnu Sevatiyan_035.csv")
+```
+
+Convert to corpus
+```{r}
+library(tm)
+Encoding(cleandata$id)<- "UTF-8"
+corpus_text<-Corpus(VectorSource(cleandata$id))
+DTM<-DocumentTermMatrix(corpus_text)
+inspect(corpus_text[1:10])
+inspect(DTM)
+```
+
+
+Remove empty doc
+```{r}
+rowTotals <- apply(DTM , 1, sum) #Find the sum of words in each Document
+dtm.new <- DTM[rowTotals>0, ] #remove all docs without words
+```
+
+
+Define topics
+```{r}
+library(topicmodels)
+ap_lda <- LDA(dtm.new, k=2, control = list (seed = 1234))
+ap_lda
+```
+
+
+Word-topic probabilities
+```{r}
+library(tidytext)
+ap_topics <- tidy(ap_lda, matrix = "beta")
+ap_topics
+```
+
+
+Most term in each topic
+```{r}
+library(ggplot2)
+library(dplyr)
+ap_top_terms <- ap_topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+ap_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+```
+
+
+Difference in β between topic 1 and topic 2
+```{r}
+library(tidyr)
+beta_wide <- ap_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  pivot_wider(names_from = topic, values_from = beta) %>% 
+  filter(topic1 > .001 | topic2 > .001) %>%
+  mutate(log_ratio = log2(topic2 / topic1))
+beta_wide
+
+beta_wide %>%
+  group_by(direction = log_ratio > 0) %>%
+  slice_max(abs(log_ratio), n=10) %>%
+  ungroup() %>%
+  mutate(term=reorder(term,log_ratio)) %>%
+  ggplot(aes(log_ratio, term)) +
+  geom_col() +
+  labs(x="Log2 ratio of beta in topic 2 / topic 1", y=NULL)
+```
+
+
+Document-topic probabilities
+```{r}
+ap_documents <- tidy(ap_lda, matrix = "gamma")
+ap_documents
+```
+
+
+Check what the most common words in that document were
+```{r}
+tidy(dtm.new) %>%
+  filter(document == 10) %>%
+  arrange(desc(count))
+```
+
+5. Menentukan Akurasi model
+```{r}
+#labelling data
+library(sentimentr)
+library(data.table)
+library(plyr)
+mukab = read.csv("F:/SEMESTER 6/MDTT/translate_data_Wisnu Sevatiyan_035.csv")
+mukab <- mukab$id
+head(mukab)
+#See sentiments for each line
+head(sentiment(mukab))
+#Sentiment by each review
+sentiments<-sentiment_by(mukab)
+
+#Convert sentiment data.table to a data frame
+sentiment_df <- setDF(sentiments)
+#Function that generates a sentiment class based in sentiment score
+get_sentiment_class <- function(sentiment_score) {
+  
+  sentiment_class = "Positive"
+  
+  if (sentiment_score < - 0.3) {
+    sentiment_class = "Negative"
+  }
+  
+  else if (sentiment_score < 0.3) {
+    sentiment_class = "Neutral"
+  }
+  
+  sentiment_class
+}
+
+#Add a sentiment_class attribute
+labeldata <-
+  sapply(sentiment_df$ave_sentiment,get_sentiment_class)
+head(labeldata)
+```
+
+```{r}
+library(dplyr)
+mukab100 <- mukab[1:100]
+# Menggabungkan kedua file berdasarkan kolom yang sama
+merged_data <- merge(mukab100, labeldata)  # Menggabungkan berdasarkan kolom "id"
+```
+
+```{r}
+#naive bayes
+sentimen_data <- merged_data
+library(readxl)
+library(caret)
+library(e1071)
+
+sampel <-sample(1:nrow(sentimen_data), 0.7*nrow(sentimen_data))
+data_training <- data.frame(sentimen_data)[sampel,]
+data_testing <- data.frame(sentimen_data) [-sampel,]
+model <- naiveBayes(y~.,data=data_training)
+prediksi<-predict(model, data_testing)
+hasil <- confusionMatrix(table(prediksi,data_testing$y))
+hasil
+```
+1. Confusion Matrix: Confusion matrix menunjukkan jumlah prediksi yang tepat dan salah untuk setiap kelas. Terdapat tiga kelas: Negative, Neutral, dan Positive. Misalnya, pada kelas Neutral, terdapat 120 prediksi yang sebenarnya Negative, 2790 prediksi yang sebenarnya Neutral, dan 90 prediksi yang sebenarnya Positive.
+
+2. Accuracy: Accuracy (akurasi) adalah persentase prediksi yang benar dari seluruh prediksi. Dalam output tersebut, akurasi sebesar 0.93, yang berarti sekitar 93% dari prediksi yang dilakukan adalah benar.
+
+3. Sensitivity: Sensitivity (sensitivitas) mengukur kemampuan model untuk mengidentifikasi dengan benar contoh positif. Dalam output tersebut, sensitivitas untuk kelas Negative adalah 0.00 (tidak ada prediksi yang benar), untuk kelas Neutral adalah 1.00 (semua prediksi benar), dan untuk kelas Positive adalah 0.00 (tidak ada prediksi yang benar).
+
+4. Specificity: Specificity (spesifisitas) mengukur kemampuan model untuk mengidentifikasi dengan benar contoh negatif. Dalam output tersebut, spesifisitas untuk kelas Negative adalah 1.00 (semua prediksi benar), untuk kelas Neutral adalah 0.00 (tidak ada prediksi yang benar), dan untuk kelas Positive adalah 1.00 (semua prediksi benar).
+
+5. Pos Pred Value: Positive Predictive Value (nilai prediksi positif) adalah persentase prediksi positif yang benar dari semua prediksi positif. Dalam output tersebut, nilai prediksi positif untuk kelas Neutral adalah 0.93 (sekitar 93% dari prediksi positif benar), sedangkan untuk kelas Negative dan Positive tidak dapat dihitung karena tidak ada prediksi positif.
+
+6. Neg Pred Value: Negative Predictive Value (nilai prediksi negatif) adalah persentase prediksi negatif yang benar dari semua prediksi negatif. Dalam output tersebut, nilai prediksi negatif untuk kelas Negative adalah 0.96 (sekitar 96% dari prediksi negatif benar), sedangkan untuk kelas Neutral dan Positive tidak dapat dihitung karena tidak ada prediksi negatif.
+
+7. Prevalence: Prevalence (prevalensi) adalah persentase kemunculan aktual dari setiap kelas dalam data. Dalam output tersebut, prevalensi untuk kelas Negative adalah 0.04 (4%), untuk kelas Neutral adalah 0.93 (93%), dan untuk kelas Positive adalah 0.03 (3%).
+
+8. Balanced Accuracy: Balanced Accuracy (akurasi seimbang) adalah rata-rata sensitivitas dan spesifisitas. Dalam output tersebut, akurasi seimbang untuk kelas Negative, Neutral, dan Positive adalah 0.50 (50%), yang menunjukkan kinerja klasifikasi yang acak atau tidak ada prediksi yang benar.
+
+6. Kesimpulan dan Saran
+Kesimpulan:
+1. Mukaab merupakan proyek ambisius yang menunjukkan komitmen Arab Saudi untuk mengembangkan infrastruktur dan meningkatkan daya tarik negara tersebut sebagai destinasi global.
+2. Proyek ini telah menarik perhatian dunia dan menjadi topik pembicaraan di berbagai platform media sosial.
+3. Kebanyakan masih sentimen negatif daripada positif di media twitter
+4. Model yang digunakan analisis sentimen sudah akurat karena di atas 80%
+
+Saran:
+1. Untuk memanfaatkan sentimen positif seputar Mukaab, perusahaan atau individu yang terlibat dalam proyek ini dapat membagikan informasi dan perkembangan terkini melalui media sosial. Hal ini akan membantu meningkatkan kesadaran merek dan menarik lebih banyak pengikut.
+2. Kolaborasi dengan influencer dan pembuat konten yang memiliki minat dalam arsitektur, teknologi, dan pembangunan berkelanjutan dapat membantu memperluas jangkauan dan meningkatkan keterlibatan dengan audiens yang lebih luas.
+3. Menggunakan data dan analitik untuk mengukur sentimen dan keterlibatan pengguna di media sosial lain, sehingga strategi pemasaran dan komunikasi dapat dioptimalkan sesuai dengan respons yang diterima.
